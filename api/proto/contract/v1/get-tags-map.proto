@@ -1,0 +1,16 @@
+syntax = "proto3";
+package v1;
+
+option go_package = "github.com/mephistolie/chefbook-backend-tag/api/proto/v1";
+
+import "v1/get-tag.proto";
+
+message GetTagsMapRequest {
+  repeated string tagIds = 1;
+  string languageCode = 2;
+}
+
+message GetTagsMapResponse {
+  map<string, Tag> tags = 1;
+  map<string, string> groupNames = 2;
+}

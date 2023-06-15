@@ -1,0 +1,21 @@
+syntax = "proto3";
+package v1;
+
+option go_package = "github.com/mephistolie/chefbook-backend-tag/api/proto/v1";
+
+message Tag {
+  string tagId = 1;
+  string name = 2;
+  string emoji = 3;
+  string groupId = 5;
+}
+
+message GetTagRequest {
+  string tagId = 1;
+  string languageCode = 2;
+}
+
+message GetTagResponse {
+  Tag tag = 1;
+  string groupName = 2;
+}
