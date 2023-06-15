@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	supportedLanguages   = []string{codeEn, codeRu}
+	supportedLanguages   = []string{codeEn, codeRu, codeUk, codeBe}
 	ruConsonantLanguages = []string{codeUk, codeBe}
 )
 
@@ -62,12 +62,12 @@ func (r *Repository) GetTagWithGroup(tagId, languageCode string) (entity.Tag, *s
 
 	if tag.GroupId != nil {
 		getGroupQuery := fmt.Sprintf(`
-			SELECT name
+			SELECT %[2]v
 			FROM %[1]v
 			WHERE group_id=$1
-		`, tagsTable, r.getNameColumn(languageCode))
+		`, groupsTable, r.getNameColumn(languageCode))
 
-		row = r.db.QueryRow(getGroupQuery, tag.GroupId)
+		row = r.db.QueryRow(getGroupQuery, *tag.GroupId)
 		_ = row.Scan(&groupName)
 	}
 

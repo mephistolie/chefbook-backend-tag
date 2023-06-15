@@ -15,7 +15,6 @@ type Config struct {
 	LogsPath    *string
 
 	Database Database
-	Amqp     Amqp
 }
 
 type Database struct {
@@ -24,14 +23,6 @@ type Database struct {
 	User     *string
 	Password *string
 	DBName   *string
-}
-
-type Amqp struct {
-	Host     *string
-	Port     *int
-	User     *string
-	Password *string
-	VHost    *string
 }
 
 func (c Config) Validate() error {
@@ -49,11 +40,7 @@ func (c Config) Print() {
 		"Database host: %v\n"+
 		"Database port: %v\n"+
 		"Database name: %v\n\n"+
-		"MQ host: %v\n"+
-		"MQ port: %v\n"+
-		"MQ vhost: %v\n\n",
 		*c.Environment, *c.Port, *c.LogsPath,
 		*c.Database.Host, *c.Database.Port, *c.Database.DBName,
-		*c.Amqp.Host, *c.Amqp.Port, *c.Amqp.VHost,
 	)
 }
