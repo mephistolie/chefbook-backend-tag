@@ -22,19 +22,10 @@ func NewGetTagsMapResponse(tags map[string]entity.Tag, groups map[string]string)
 }
 
 func NewTag(tag entity.Tag) *api.Tag {
-	emoji := ""
-	if tag.Emoji != nil {
-		emoji = *tag.Emoji
-	}
-	groupId := ""
-	if tag.GroupId != nil {
-		groupId = *tag.GroupId
-	}
-
 	return &api.Tag{
 		TagId:   tag.Id,
 		Name:    *tag.Name,
-		Emoji:   emoji,
-		GroupId: groupId,
+		Emoji:   tag.Emoji,
+		GroupId: tag.Emoji,
 	}
 }
