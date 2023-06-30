@@ -26,6 +26,6 @@ func NewTag(tag entity.Tag) *api.Tag {
 		TagId:   tag.Id,
 		Name:    *tag.Name,
 		Emoji:   tag.Emoji,
-		GroupId: tag.Emoji,
+		GroupId: tag.GroupId,
 	}
 }
