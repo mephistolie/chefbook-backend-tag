@@ -1,16 +1,18 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/mephistolie/chefbook-backend-common/log"
 )
 
-func (r *Repository) GetGroups(languageCode string) map[string]string {
-	return r.getGroups(languageCode, nil)
+func (r *Repository) GetGroups(ctx context.Context, languageCode string) map[string]string {
+	return r.getGroups(ctx, languageCode, nil)
 }
 
-func (r *Repository) getGroups(languageCode string, groupIds *[]string) map[string]string {
+func (r *Repository) getGroups(ctx context.Context, languageCode string, groupIds *[]string) map[string]string {
 	groups := make(map[string]string)
 
 	query := fmt.Sprintf(`
@@ -23,15 +25,16 @@ func (r *Repository) getGroups(languageCode string, groupIds *[]string) map[stri
 
 	if groupIds != nil {
 		query = query + " WHERE group_id=ANY($1)"
-		rows, err = r.db.Query(query, *groupIds)
+		rows, err = r.db.QueryContext(ctx, query, *groupIds)
 	} else {
-		rows, err = r.db.Query(query)
+		rows, err = r.db.QueryContext(ctx, query)
 	}
 
 	if err != nil {
 		log.Errorf("unable to get groups: %s", err)
 		return map[string]string{}
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var id string
@@ -41,17 +44,21 @@ func (r *Repository) getGroups(languageCode string, groupIds *[]string) map[stri
 			continue
 		}
 		if name == nil {
-			name = r.getFallbackGroupName(id, languageCode)
+			name = r.getFallbackGroupName(ctx, id, languageCode)
 		}
 		if name != nil {
 			groups[id] = *name
 		}
 	}
+	if err = rows.Err(); err != nil {
+		log.Errorf("unable to iterate groups: %s", err)
+		return map[string]string{}
+	}
 
 	return groups
 }
 
-func (r *Repository) getFallbackGroupName(groupId string, languageCode string) *string {
+func (r *Repository) getFallbackGroupName(ctx context.Context, groupId string, languageCode string) *string {
 	var name *string
 
 	query := fmt.Sprintf(`
@@ -60,7 +67,7 @@ func (r *Repository) getFallbackGroupName(groupId string, languageCode string) *
 		WHERE group_id=$1
 	`, groupsTable, r.getFallbackNameColumn(languageCode))
 
-	row := r.db.QueryRow(query, groupId)
+	row := r.db.QueryRowContext(ctx, query, groupId)
 	_ = row.Scan(&name)
 
 	return name

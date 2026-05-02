@@ -1,8 +1,10 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/mephistolie/chefbook-backend-common/log"
 	"github.com/mephistolie/chefbook-backend-common/responses/fail"
 	"github.com/mephistolie/chefbook-backend-tag/internal/entity"
@@ -22,21 +24,21 @@ var (
 	ruConsonantLanguages = []string{codeUk, codeBe}
 )
 
-func (r *Repository) GetTagsAndGroups(languageCode string, groupIds *[]string) ([]entity.Tag, map[string]string) {
-	tags, usedGroupIds := r.getTagsWithGroupsIds(languageCode, nil, groupIds)
-	return tags, r.getGroups(languageCode, &usedGroupIds)
+func (r *Repository) GetTagsAndGroups(ctx context.Context, languageCode string, groupIds *[]string) ([]entity.Tag, map[string]string) {
+	tags, usedGroupIds := r.getTagsWithGroupsIds(ctx, languageCode, nil, groupIds)
+	return tags, r.getGroups(ctx, languageCode, &usedGroupIds)
 }
 
-func (r *Repository) GetTagsMapWithGroups(tagIds []string, languageCode string) (map[string]entity.Tag, map[string]string) {
-	tags, usedGroupIds := r.getTagsWithGroupsIds(languageCode, &tagIds, nil)
+func (r *Repository) GetTagsMapWithGroups(ctx context.Context, tagIds []string, languageCode string) (map[string]entity.Tag, map[string]string) {
+	tags, usedGroupIds := r.getTagsWithGroupsIds(ctx, languageCode, &tagIds, nil)
 	tagsMap := make(map[string]entity.Tag)
 	for _, tag := range tags {
 		tagsMap[tag.Id] = tag
 	}
-	return tagsMap, r.getGroups(languageCode, &usedGroupIds)
+	return tagsMap, r.getGroups(ctx, languageCode, &usedGroupIds)
 }
 
-func (r *Repository) GetTagWithGroup(tagId, languageCode string) (entity.Tag, *string, error) {
+func (r *Repository) GetTagWithGroup(ctx context.Context, tagId, languageCode string) (entity.Tag, *string, error) {
 	var tag entity.Tag
 	var groupName *string
 
@@ -46,14 +48,14 @@ func (r *Repository) GetTagWithGroup(tagId, languageCode string) (entity.Tag, *s
 		WHERE tag_id=$1
 	`, tagsTable, r.getNameColumn(languageCode))
 
-	row := r.db.QueryRow(getTagQuery, tagId)
+	row := r.db.QueryRowContext(ctx, getTagQuery, tagId)
 	if err := row.Scan(&tag.Id, &tag.Name, &tag.Emoji, &tag.GroupId); err != nil {
 		log.Infof("unable to get tag %s: %s", tagId, err)
 		return entity.Tag{}, nil, fail.GrpcNotFound
 	}
 
 	if tag.Name == nil {
-		tag.Name = r.getFallbackTagName(tagId, languageCode)
+		tag.Name = r.getFallbackTagName(ctx, tagId, languageCode)
 		if tag.Name == nil {
 			log.Warnf("unable to get tag %s name for language %s", tagId, languageCode)
 			return entity.Tag{}, nil, fail.GrpcNotFound
@@ -67,13 +69,13 @@ func (r *Repository) GetTagWithGroup(tagId, languageCode string) (entity.Tag, *s
 			WHERE group_id=$1
 		`, groupsTable, r.getNameColumn(languageCode))
 
-		row = r.db.QueryRow(getGroupQuery, *tag.GroupId)
+		row = r.db.QueryRowContext(ctx, getGroupQuery, *tag.GroupId)
 		_ = row.Scan(&groupName)
 	}
 
 	return tag, groupName, nil
 }
-func (r *Repository) getTagsWithGroupsIds(languageCode string, tagIds *[]string, groupIds *[]string) ([]entity.Tag, []string) {
+func (r *Repository) getTagsWithGroupsIds(ctx context.Context, languageCode string, tagIds *[]string, groupIds *[]string) ([]entity.Tag, []string) {
 	var tags []entity.Tag
 	usedGroupIdsSet := make(map[string]bool)
 
@@ -87,21 +89,22 @@ func (r *Repository) getTagsWithGroupsIds(languageCode string, tagIds *[]string,
 
 	if tagIds != nil && groupIds != nil {
 		query = query + " WHERE tag_id=ANY($1) AND group_id=ANY($2)"
-		rows, err = r.db.Query(query, *tagIds, *groupIds)
+		rows, err = r.db.QueryContext(ctx, query, *tagIds, *groupIds)
 	} else if tagIds != nil {
 		query = query + " WHERE tag_id=ANY($1)"
-		rows, err = r.db.Query(query, *tagIds)
+		rows, err = r.db.QueryContext(ctx, query, *tagIds)
 	} else if groupIds != nil {
 		query = query + " WHERE group_id=ANY($1)"
-		rows, err = r.db.Query(query, *groupIds)
+		rows, err = r.db.QueryContext(ctx, query, *groupIds)
 	} else {
-		rows, err = r.db.Query(query)
+		rows, err = r.db.QueryContext(ctx, query)
 	}
 
 	if err != nil {
 		log.Errorf("unable to get tags: %s", err)
 		return []entity.Tag{}, []string{}
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var tag entity.Tag
@@ -110,7 +113,7 @@ func (r *Repository) getTagsWithGroupsIds(languageCode string, tagIds *[]string,
 			continue
 		}
 		if tag.Name == nil {
-			tag.Name = r.getFallbackTagName(tag.Id, languageCode)
+			tag.Name = r.getFallbackTagName(ctx, tag.Id, languageCode)
 		}
 		if tag.Name != nil {
 			tags = append(tags, tag)
@@ -119,6 +122,10 @@ func (r *Repository) getTagsWithGroupsIds(languageCode string, tagIds *[]string,
 				usedGroupIdsSet[*tag.GroupId] = true
 			}
 		}
+	}
+	if err = rows.Err(); err != nil {
+		log.Errorf("unable to iterate tags: %s", err)
+		return []entity.Tag{}, []string{}
 	}
 
 	var usedGroupIds []string
@@ -129,7 +136,7 @@ func (r *Repository) getTagsWithGroupsIds(languageCode string, tagIds *[]string,
 	return tags, usedGroupIds
 }
 
-func (r *Repository) getFallbackTagName(tagId string, languageCode string) *string {
+func (r *Repository) getFallbackTagName(ctx context.Context, tagId string, languageCode string) *string {
 	var name *string
 
 	query := fmt.Sprintf(`
@@ -138,7 +145,7 @@ func (r *Repository) getFallbackTagName(tagId string, languageCode string) *stri
 		WHERE tag_id=$1
 	`, tagsTable, r.getFallbackNameColumn(languageCode))
 
-	row := r.db.QueryRow(query, tagId)
+	row := r.db.QueryRowContext(ctx, query, tagId)
 	_ = row.Scan(&name)
 
 	return name
