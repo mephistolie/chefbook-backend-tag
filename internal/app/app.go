@@ -21,9 +21,15 @@ func Run(cfg *config.Config) {
 	log.InitWithService("tag", *cfg.LogsPath, *cfg.Environment == config.EnvDev)
 	cfg.Print()
 
+	ctx := context.Background()
+
 	db, err := postgres.Connect(cfg.Database)
 	if err != nil {
-		log.Fatal(err)
+		log.LogFatal(ctx, log.Event{
+			Event:     "app.startup.failed",
+			Message:   "service startup failed",
+			Component: "app",
+		}, err)
 		return
 	}
 
@@ -33,7 +39,11 @@ func Run(cfg *config.Config) {
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *cfg.Port))
 	if err != nil {
-		log.Fatal(err)
+		log.LogFatal(ctx, log.Event{
+			Event:     "app.startup.failed",
+			Message:   "service startup failed",
+			Component: "app",
+		}, err)
 		return
 	}
 
@@ -53,13 +63,21 @@ func Run(cfg *config.Config) {
 
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
-			log.Errorf("error occurred while running http server: %s\n", err.Error())
+			log.LogError(ctx, log.Event{
+				Event:     "grpc.server.failed",
+				Message:   "error occurred while running grpc server",
+				Component: log.ComponentGRPC,
+			}, err)
 		} else {
-			log.Info("gRPC server started")
+			log.Log(ctx, log.Event{
+				Event:     "grpc.server.started",
+				Message:   "grpc server started",
+				Component: log.ComponentGRPC,
+			})
 		}
 	}()
 
-	wait := shutdown.Graceful(context.Background(), 5*time.Second, map[string]shutdown.Operation{
+	wait := shutdown.Graceful(ctx, 5*time.Second, map[string]shutdown.Operation{
 		"grpc-server": func(ctx context.Context) error {
 			grpcServer.GracefulStop()
 			return nil
