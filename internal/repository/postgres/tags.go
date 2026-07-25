@@ -50,14 +50,14 @@ func (r *Repository) GetTagWithGroup(ctx context.Context, tagId, languageCode st
 
 	row := r.db.QueryRowContext(ctx, getTagQuery, tagId)
 	if err := row.Scan(&tag.Id, &tag.Name, &tag.Emoji, &tag.GroupId); err != nil {
-		log.Infof("unable to get tag %s: %s", tagId, err)
+		log.AutoInfof("unable to get tag %s: %s", tagId, err)
 		return entity.Tag{}, nil, fail.GrpcNotFound
 	}
 
 	if tag.Name == nil {
 		tag.Name = r.getFallbackTagName(ctx, tagId, languageCode)
 		if tag.Name == nil {
-			log.Warnf("unable to get tag %s name for language %s", tagId, languageCode)
+			log.AutoWarnf("unable to get tag %s name for language %s", tagId, languageCode)
 			return entity.Tag{}, nil, fail.GrpcNotFound
 		}
 	}
@@ -101,7 +101,7 @@ func (r *Repository) getTagsWithGroupsIds(ctx context.Context, languageCode stri
 	}
 
 	if err != nil {
-		log.Errorf("unable to get tags: %s", err)
+		log.AutoErrorf("unable to get tags: %s", err)
 		return []entity.Tag{}, []string{}
 	}
 	defer rows.Close()
@@ -109,7 +109,7 @@ func (r *Repository) getTagsWithGroupsIds(ctx context.Context, languageCode stri
 	for rows.Next() {
 		var tag entity.Tag
 		if err = rows.Scan(&tag.Id, &tag.Name, &tag.Emoji, &tag.GroupId); err != nil {
-			log.Errorf("unable to parse tag: %s", err)
+			log.AutoErrorf("unable to parse tag: %s", err)
 			continue
 		}
 		if tag.Name == nil {
@@ -124,7 +124,7 @@ func (r *Repository) getTagsWithGroupsIds(ctx context.Context, languageCode stri
 		}
 	}
 	if err = rows.Err(); err != nil {
-		log.Errorf("unable to iterate tags: %s", err)
+		log.AutoErrorf("unable to iterate tags: %s", err)
 		return []entity.Tag{}, []string{}
 	}
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"github.com/mephistolie/chefbook-backend-common/log"
 )
 
@@ -33,14 +34,9 @@ func (c Config) Validate() error {
 }
 
 func (c Config) Print() {
-	log.Infof("TAG SERVICE CONFIGURATION\n"+
-		"Environment: %v\n"+
-		"Port: %v\n"+
-		"Logs path: %v\n\n"+
-		"Database host: %v\n"+
-		"Database port: %v\n"+
-		"Database name: %v\n\n"+
-		*c.Environment, *c.Port, *c.LogsPath,
-		*c.Database.Host, *c.Database.Port, *c.Database.DBName,
-	)
+	log.Log(context.Background(), log.Event{
+		Event:     "config.loaded",
+		Message:   "service configuration loaded",
+		Component: "config",
+	})
 }

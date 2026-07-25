@@ -31,7 +31,7 @@ func (r *Repository) getGroups(ctx context.Context, languageCode string, groupId
 	}
 
 	if err != nil {
-		log.Errorf("unable to get groups: %s", err)
+		log.AutoErrorf("unable to get groups: %s", err)
 		return map[string]string{}
 	}
 	defer rows.Close()
@@ -40,7 +40,7 @@ func (r *Repository) getGroups(ctx context.Context, languageCode string, groupId
 		var id string
 		var name *string
 		if err = rows.Scan(&id, &name); err != nil {
-			log.Errorf("unable to parse group: %s", err)
+			log.AutoErrorf("unable to parse group: %s", err)
 			continue
 		}
 		if name == nil {
@@ -51,7 +51,7 @@ func (r *Repository) getGroups(ctx context.Context, languageCode string, groupId
 		}
 	}
 	if err = rows.Err(); err != nil {
-		log.Errorf("unable to iterate groups: %s", err)
+		log.AutoErrorf("unable to iterate groups: %s", err)
 		return map[string]string{}
 	}
 

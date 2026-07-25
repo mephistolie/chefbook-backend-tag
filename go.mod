@@ -5,7 +5,7 @@ go 1.26.2
 require (
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/mephistolie/chefbook-backend-common/log v0.8.0
+	github.com/mephistolie/chefbook-backend-common/log v0.9.0
 	github.com/mephistolie/chefbook-backend-common/migrate/sql v0.7.0
 	github.com/mephistolie/chefbook-backend-common/responses v0.9.0
 	github.com/mephistolie/chefbook-backend-common/shutdown v0.6.0
