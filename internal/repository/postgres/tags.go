@@ -3,11 +3,12 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
-	"github.com/mephistolie/chefbook-backend-common/log"
 	"github.com/mephistolie/chefbook-backend-common/responses/fail"
 	"github.com/mephistolie/chefbook-backend-tag/internal/entity"
+	eventlog "github.com/mephistolie/chefbook-backend-tag/internal/logging"
 )
 
 const (
@@ -50,14 +51,22 @@ func (r *Repository) GetTagWithGroup(ctx context.Context, tagId, languageCode st
 
 	row := r.db.QueryRowContext(ctx, getTagQuery, tagId)
 	if err := row.Scan(&tag.Id, &tag.Name, &tag.Emoji, &tag.GroupId); err != nil {
-		log.AutoInfof("unable to get tag %s: %s", tagId, err)
+		data := eventlog.TagLookup{TagID: tagId}
+		if errors.Is(err, sql.ErrNoRows) {
+			events.TagNotFound(ctx, data)
+		} else {
+			events.TagLookupFailed(ctx, data, err)
+		}
 		return entity.Tag{}, nil, fail.GrpcNotFound
 	}
 
 	if tag.Name == nil {
 		tag.Name = r.getFallbackTagName(ctx, tagId, languageCode)
 		if tag.Name == nil {
-			log.AutoWarnf("unable to get tag %s name for language %s", tagId, languageCode)
+			events.TagNameUnavailable(ctx, eventlog.TagLookup{
+				TagID:        tagId,
+				LanguageCode: languageCode,
+			})
 			return entity.Tag{}, nil, fail.GrpcNotFound
 		}
 	}
@@ -101,7 +110,10 @@ func (r *Repository) getTagsWithGroupsIds(ctx context.Context, languageCode stri
 	}
 
 	if err != nil {
-		log.AutoErrorf("unable to get tags: %s", err)
+		events.PostgresQueryFailed(ctx, eventlog.PostgresOperation{
+			Operation: "get_tags",
+			Entity:    "tag",
+		}, err)
 		return []entity.Tag{}, []string{}
 	}
 	defer rows.Close()
@@ -109,7 +121,10 @@ func (r *Repository) getTagsWithGroupsIds(ctx context.Context, languageCode stri
 	for rows.Next() {
 		var tag entity.Tag
 		if err = rows.Scan(&tag.Id, &tag.Name, &tag.Emoji, &tag.GroupId); err != nil {
-			log.AutoErrorf("unable to parse tag: %s", err)
+			events.PostgresRowScanFailed(ctx, eventlog.PostgresOperation{
+				Operation: "get_tags",
+				Entity:    "tag",
+			}, err)
 			continue
 		}
 		if tag.Name == nil {
@@ -124,7 +139,10 @@ func (r *Repository) getTagsWithGroupsIds(ctx context.Context, languageCode stri
 		}
 	}
 	if err = rows.Err(); err != nil {
-		log.AutoErrorf("unable to iterate tags: %s", err)
+		events.PostgresRowsIterationFailed(ctx, eventlog.PostgresOperation{
+			Operation: "get_tags",
+			Entity:    "tag",
+		}, err)
 		return []entity.Tag{}, []string{}
 	}
 

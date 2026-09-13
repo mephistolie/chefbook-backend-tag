@@ -5,11 +5,11 @@ go 1.26.2
 require (
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/mephistolie/chefbook-backend-common/log v0.9.0
-	github.com/mephistolie/chefbook-backend-common/migrate/sql v0.7.0
-	github.com/mephistolie/chefbook-backend-common/responses v0.9.0
-	github.com/mephistolie/chefbook-backend-common/shutdown v0.6.0
-	github.com/mephistolie/chefbook-backend-tag/api v1.1.0
+	github.com/mephistolie/chefbook-backend-common/log v0.10.0
+	github.com/mephistolie/chefbook-backend-common/migrate/sql v0.8.0
+	github.com/mephistolie/chefbook-backend-common/responses v0.10.0
+	github.com/mephistolie/chefbook-backend-common/shutdown v0.7.0
+	github.com/mephistolie/chefbook-backend-tag/api v1.2.0-rc.1
 	github.com/peterbourgon/ff/v3 v3.4.0
 	google.golang.org/grpc v1.80.0
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
@@ -17,8 +17,6 @@ require (
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.19.1 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
@@ -27,7 +25,6 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/rs/zerolog v1.35.1 // indirect
-	github.com/sirupsen/logrus v1.9.4 // indirect
 	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect

@@ -2,27 +2,34 @@ package app
 
 import (
 	"context"
+
 	"github.com/jmoiron/sqlx"
-	"github.com/mephistolie/chefbook-backend-common/log"
 	tagpb "github.com/mephistolie/chefbook-backend-tag/api/proto/implementation/v1"
+	eventlog "github.com/mephistolie/chefbook-backend-tag/internal/logging"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+
 	"time"
 )
 
-func monitorHealthChecking(db *sqlx.DB, healthServer *health.Server) {
+func monitorHealthChecking(ctx context.Context, db *sqlx.DB, healthServer *health.Server) {
+	events := eventlog.NewEvents()
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
 	for {
 		status := healthpb.HealthCheckResponse_SERVING
-		if db.Ping() != nil {
+		if err := db.PingContext(ctx); err != nil {
 			status = healthpb.HealthCheckResponse_NOT_SERVING
-			log.LogWarn(context.Background(), log.Event{
-				Event:     "postgres.health_check.failed",
-				Message:   "database is unavailable",
-				Component: log.ComponentPostgres,
-			})
+			events.PostgresHealthCheckFailed(ctx, err)
 		}
 		setHealthStatus(healthServer, status)
-		time.Sleep(1 * time.Minute)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
 	}
 }
 

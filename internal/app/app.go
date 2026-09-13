@@ -7,6 +7,7 @@ import (
 	"github.com/mephistolie/chefbook-backend-common/shutdown"
 	tagpb "github.com/mephistolie/chefbook-backend-tag/api/proto/implementation/v1"
 	"github.com/mephistolie/chefbook-backend-tag/internal/config"
+	eventlog "github.com/mephistolie/chefbook-backend-tag/internal/logging"
 	"github.com/mephistolie/chefbook-backend-tag/internal/repository/postgres"
 	service "github.com/mephistolie/chefbook-backend-tag/internal/service/tag"
 	tag "github.com/mephistolie/chefbook-backend-tag/internal/transport/grpc"
@@ -19,17 +20,15 @@ import (
 
 func Run(cfg *config.Config) {
 	log.InitWithService("tag", *cfg.LogsPath, *cfg.Environment == config.EnvDev)
-	cfg.Print()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	ctx := context.Background()
+	events := eventlog.NewEvents()
+	cfg.Print(ctx)
 
 	db, err := postgres.Connect(cfg.Database)
 	if err != nil {
-		log.LogFatal(ctx, log.Event{
-			Event:     "app.startup.failed",
-			Message:   "service startup failed",
-			Component: "app",
-		}, err)
+		events.StartupFailed(ctx, eventlog.StartupFailure{Operation: "connect_postgres"}, err)
 		return
 	}
 
@@ -39,11 +38,7 @@ func Run(cfg *config.Config) {
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *cfg.Port))
 	if err != nil {
-		log.LogFatal(ctx, log.Event{
-			Event:     "app.startup.failed",
-			Message:   "service startup failed",
-			Component: "app",
-		}, err)
+		events.StartupFailed(ctx, eventlog.StartupFailure{Operation: "listen_grpc"}, err)
 		return
 	}
 
@@ -56,24 +51,15 @@ func Run(cfg *config.Config) {
 	healthServer := health.NewServer()
 	tagServer := tag.NewServer(tagService)
 
-	go monitorHealthChecking(db, healthServer)
+	go monitorHealthChecking(ctx, db, healthServer)
 
 	tagpb.RegisterTagServiceServer(grpcServer, tagServer)
 	healthpb.RegisterHealthServer(grpcServer, healthServer)
 
 	go func() {
+		events.GRPCServerStarted(ctx)
 		if err := grpcServer.Serve(lis); err != nil {
-			log.LogError(ctx, log.Event{
-				Event:     "grpc.server.failed",
-				Message:   "error occurred while running grpc server",
-				Component: log.ComponentGRPC,
-			}, err)
-		} else {
-			log.Log(ctx, log.Event{
-				Event:     "grpc.server.started",
-				Message:   "grpc server started",
-				Component: log.ComponentGRPC,
-			})
+			events.GRPCServerFailed(ctx, err)
 		}
 	}()
 

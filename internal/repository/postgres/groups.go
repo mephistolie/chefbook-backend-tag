@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/mephistolie/chefbook-backend-common/log"
+	eventlog "github.com/mephistolie/chefbook-backend-tag/internal/logging"
 )
+
+var events = eventlog.NewEvents()
 
 func (r *Repository) GetGroups(ctx context.Context, languageCode string) map[string]string {
 	return r.getGroups(ctx, languageCode, nil)
@@ -31,7 +33,10 @@ func (r *Repository) getGroups(ctx context.Context, languageCode string, groupId
 	}
 
 	if err != nil {
-		log.AutoErrorf("unable to get groups: %s", err)
+		events.PostgresQueryFailed(ctx, eventlog.PostgresOperation{
+			Operation: "get_groups",
+			Entity:    "group",
+		}, err)
 		return map[string]string{}
 	}
 	defer rows.Close()
@@ -40,7 +45,10 @@ func (r *Repository) getGroups(ctx context.Context, languageCode string, groupId
 		var id string
 		var name *string
 		if err = rows.Scan(&id, &name); err != nil {
-			log.AutoErrorf("unable to parse group: %s", err)
+			events.PostgresRowScanFailed(ctx, eventlog.PostgresOperation{
+				Operation: "get_groups",
+				Entity:    "group",
+			}, err)
 			continue
 		}
 		if name == nil {
@@ -51,7 +59,10 @@ func (r *Repository) getGroups(ctx context.Context, languageCode string, groupId
 		}
 	}
 	if err = rows.Err(); err != nil {
-		log.AutoErrorf("unable to iterate groups: %s", err)
+		events.PostgresRowsIterationFailed(ctx, eventlog.PostgresOperation{
+			Operation: "get_groups",
+			Entity:    "group",
+		}, err)
 		return map[string]string{}
 	}
 
